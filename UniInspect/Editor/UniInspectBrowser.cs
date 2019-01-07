@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -25,6 +24,15 @@ namespace UniInspect
         {
             goIcon = EditorGUIUtility.FindTexture("PrefabNormal Icon");
             soIcon = EditorGUIUtility.FindTexture("ScriptableObject Icon");
+
+            var findTextureFunc = typeof(EditorGUIUtility).GetMethod("FindTexture",
+                BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (findTextureFunc != null)
+            {
+//                goIcon = findTextureFunc.Invoke(null, new[] {typeof(GameObject)}) as Texture2D;
+                soIcon = findTextureFunc.Invoke(null, new[] {typeof(ScriptableObject)}) as Texture2D;
+            }
         }
 
         private static UniInspectBrowser Window
@@ -265,7 +273,10 @@ namespace UniInspect
                         if (pass) { _filteredScriptableObjects.Add(instance); }
                     }
                 }
-                else { _filteredScriptableObjects = UniInspectEditor.ScriptableObjectInstances; }
+                else
+                {
+                    _filteredScriptableObjects = new List<ScriptableObject>(UniInspectEditor.ScriptableObjectInstances);
+                }
             }
 
             _filteredObjects.AddRange(_filteredGameObjects.Select(go => go as Object));
