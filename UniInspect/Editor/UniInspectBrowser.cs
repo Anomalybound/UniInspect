@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -78,7 +79,8 @@ namespace UniInspect
         private List<GameObject> _filteredGameObjects = new List<GameObject>();
         private List<ScriptableObject> _filteredScriptableObjects = new List<ScriptableObject>();
         private List<Object> _filteredObjects = new List<Object>();
-        private List<MonoBehaviour> _hideMonoBehaviours = new List<MonoBehaviour>();
+        private List<Object> _hidedObjects = new List<Object>();
+        private List<MonoBehaviour> _hidedMonoBehaviours = new List<MonoBehaviour>();
 
         private void OnEnable()
         {
@@ -127,6 +129,7 @@ namespace UniInspect
                     for (var i = start; i < end; i++)
                     {
                         var obj = _filteredObjects[i];
+
                         if (obj is GameObject)
                         {
                             var go = obj as GameObject;
@@ -292,33 +295,29 @@ namespace UniInspect
 
             using (new GUILayout.VerticalScope())
             {
-                using (new GUILayout.HorizontalScope())
+                var showObj = !_hidedObjects.Contains(item);
+
+                DrawItemTitle(item, showObj);
+
+                if (showObj)
                 {
-                    GUILayout.Button(soIcon, EditorStyles.centeredGreyMiniLabel, GUILayout.Width(24),
-                        GUILayout.Height(24));
-                    EditorGUILayout.LabelField(item.name, objectLabelStyle, GUILayout.Height(24));
+                    var serializedObject = new SerializedObject(item);
 
-                    GUILayout.FlexibleSpace();
-
-                    ItemSelections(item, 24);
-                }
-
-                var serializedObject = new SerializedObject(item);
-
-                for (var i = 0; i < fields.Count; i++)
-                {
-                    using (var check = new EditorGUI.ChangeCheckScope())
+                    for (var i = 0; i < fields.Count; i++)
                     {
-                        var field = fields[i];
-                        var sp = serializedObject.FindProperty(field.Name);
+                        using (var check = new EditorGUI.ChangeCheckScope())
+                        {
+                            var field = fields[i];
+                            var sp = serializedObject.FindProperty(field.Name);
 
-                        if (sp == null) { continue; }
+                            if (sp == null) { continue; }
 
-                        EditorGUILayout.PropertyField(sp);
+                            EditorGUILayout.PropertyField(sp);
 
-                        if (!check.changed) { continue; }
+                            if (!check.changed) { continue; }
 
-                        serializedObject.ApplyModifiedProperties();
+                            serializedObject.ApplyModifiedProperties();
+                        }
                     }
                 }
             }
@@ -330,99 +329,130 @@ namespace UniInspect
         {
             var multipleMonos = children.Count > 1;
 
-            if (oddLine) { GUILayout.BeginHorizontal(line1Style); }
-            else { GUILayout.BeginHorizontal(line2Style); }
+            GUILayout.BeginHorizontal(oddLine ? line1Style : line2Style);
 
             using (new GUILayout.VerticalScope())
             {
-                using (new GUILayout.HorizontalScope())
+                var showObj = !_hidedObjects.Contains(item);
+
+                // Label
+                DrawItemTitle(item, showObj);
+
+                if (showObj)
                 {
-                    GUILayout.Button(goIcon, EditorStyles.centeredGreyMiniLabel, GUILayout.Width(24),
-                        GUILayout.Height(24));
-                    EditorGUILayout.LabelField(item.name, objectLabelStyle, GUILayout.Height(24));
-
-                    GUILayout.FlexibleSpace();
-
-                    ItemSelections(item, 24);
-                }
-
-                for (var i = 0; i < children.Count; i++)
-                {
-                    using (var check = new EditorGUI.ChangeCheckScope())
+                    for (var i = 0; i < children.Count; i++)
                     {
-                        var instance = children[i];
-                        var cursor = instance.GetType();
-                        var show = !_hideMonoBehaviours.Contains(instance);
-                        var fields = UniInspectEditor.GetFields(instance);
-
-                        var serializedObject = new SerializedObject(instance);
-
-                        if (multipleMonos)
+                        using (var check = new EditorGUI.ChangeCheckScope())
                         {
-                            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                            var instance = children[i];
+                            var cursor = instance.GetType();
+                            var show = !_hidedMonoBehaviours.Contains(instance);
+                            var fields = UniInspectEditor.GetFields(instance);
 
-                            var displayName = string.Format("{0} [{1}]", cursor.Name, show ? "-" : "+");
-                            if (GUILayout.Button(displayName, centeredLabelStyle))
+                            var serializedObject = new SerializedObject(instance);
+
+                            if (multipleMonos)
                             {
-                                if (show) { _hideMonoBehaviours.Add(instance); }
-                                else { _hideMonoBehaviours.Remove(instance); }
+                                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
 
-                                Repaint();
+                                var displayName = string.Format("{0} [{1}]", cursor.Name, show ? "-" : "+");
+                                ToggleButton(displayName, show,
+                                    () => _hidedMonoBehaviours.Add(instance),
+                                    () => _hidedMonoBehaviours.Remove(instance),
+                                    centeredLabelStyle);
                             }
-                        }
 
-                        if (show)
-                        {
-                            for (var j = 0; j < fields.Count; j++)
+                            if (show)
                             {
-                                var field = fields[j];
-                                var sp = serializedObject.FindProperty(field.Name);
+                                for (var j = 0; j < fields.Count; j++)
+                                {
+                                    var field = fields[j];
+                                    var sp = serializedObject.FindProperty(field.Name);
 
-                                if (sp == null) { continue; }
+                                    if (sp == null) { continue; }
 
-                                EditorGUILayout.PropertyField(sp);
+                                    EditorGUILayout.PropertyField(sp);
+                                }
                             }
+
+                            if (multipleMonos) { EditorGUILayout.EndVertical(); }
+
+                            if (!check.changed) { continue; }
+
+                            serializedObject.ApplyModifiedProperties();
                         }
-
-                        if (multipleMonos) { EditorGUILayout.EndVertical(); }
-
-                        if (!check.changed) { continue; }
-
-                        serializedObject.ApplyModifiedProperties();
                     }
-                }
 
-                EditorGUILayout.Separator();
+                    EditorGUILayout.Separator();
+                }
             }
 
             GUILayout.EndHorizontal();
         }
 
-        private void ItemSelections(Object item, float height)
+        private void DrawItemTitle(Object item, bool showObj)
         {
-            using (new GUILayout.VerticalScope(GUILayout.Height(height)))
+            var displayName = string.Format("{0} [{1}]", item.name, showObj ? "-" : "+");
+            using (new GUILayout.HorizontalScope())
             {
-                GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Select"))
-                {
-                    Selection.activeObject = item;
-                    Selection.objects = new[] {item};
-                    EditorGUIUtility.PingObject(item);
-                }
+                if (GUILayout.Button(goIcon, EditorStyles.centeredGreyMiniLabel, GUILayout.Width(24),
+                    GUILayout.Height(24))) { SelectObject(item); }
 
-                GUILayout.FlexibleSpace();
+                ToggleButton(displayName, showObj,
+                    () => _hidedObjects.Add(item),
+                    () => _hidedObjects.Remove(item),
+                    objectLabelStyle);
+
+                ItemSelections(item, 24);
+            }
+        }
+
+        private void ToggleButton(string displayName, bool toggle, Action onAction, Action offAction, GUIStyle style)
+        {
+            if (!GUILayout.Button(displayName, style, GUILayout.Height(24), GUILayout.ExpandWidth(true))) { return; }
+
+            if (toggle)
+            {
+                if (onAction != null) { onAction.Invoke(); }
+            }
+            else
+            {
+                if (offAction != null) { offAction.Invoke(); }
             }
 
-            using (new GUILayout.VerticalScope(GUILayout.Height(height)))
+            Repaint();
+        }
+
+        private static void SelectObject(Object target)
+        {
+            Selection.activeObject = target;
+            Selection.objects = new[] {target};
+            EditorGUIUtility.PingObject(target);
+        }
+
+        private void ItemSelections(Object item, float height)
+        {
+            using (new EditorGUILayout.HorizontalScope(GUILayout.Width(200)))
             {
-                GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Add to selection"))
+                using (new GUILayout.VerticalScope(GUILayout.Height(height)))
                 {
-                    Selection.objects = new List<Object>(Selection.objects) {item}.ToArray();
-                    EditorGUIUtility.PingObject(item);
+                    GUILayout.FlexibleSpace();
+                    if (GUILayout.Button("Select", GUILayout.Width(70))) { SelectObject(item); }
+
+                    GUILayout.FlexibleSpace();
                 }
 
-                GUILayout.FlexibleSpace();
+                using (new GUILayout.VerticalScope(GUILayout.Height(height)))
+                {
+                    GUILayout.FlexibleSpace();
+                    if (GUILayout.Button("Add to selection", GUILayout.Width(100)))
+                    {
+                        Selection.objects = new List<Object>(Selection.objects) {item}.ToArray();
+                        EditorGUIUtility.PingObject(item);
+                    }
+
+                    GUILayout.FlexibleSpace();
+                }
             }
         }
 
