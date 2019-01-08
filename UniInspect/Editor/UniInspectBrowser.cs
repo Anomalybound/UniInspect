@@ -297,7 +297,7 @@ namespace UniInspect
             {
                 var showObj = !_hidedObjects.Contains(item);
 
-                DrawItemTitle(item, showObj);
+                DrawItemTitle(soIcon, item, showObj);
 
                 if (showObj)
                 {
@@ -336,7 +336,7 @@ namespace UniInspect
                 var showObj = !_hidedObjects.Contains(item);
 
                 // Label
-                DrawItemTitle(item, showObj);
+                DrawItemTitle(goIcon, item, showObj);
 
                 if (showObj)
                 {
@@ -390,12 +390,12 @@ namespace UniInspect
             GUILayout.EndHorizontal();
         }
 
-        private void DrawItemTitle(Object item, bool showObj)
+        private void DrawItemTitle(Texture2D icon, Object item, bool showObj)
         {
             var displayName = string.Format("{0} [{1}]", item.name, showObj ? "-" : "+");
             using (new GUILayout.HorizontalScope())
             {
-                if (GUILayout.Button(goIcon, EditorStyles.centeredGreyMiniLabel, GUILayout.Width(24),
+                if (GUILayout.Button(icon, EditorStyles.centeredGreyMiniLabel, GUILayout.Width(24),
                     GUILayout.Height(24))) { SelectObject(item); }
 
                 ToggleButton(displayName, showObj,
